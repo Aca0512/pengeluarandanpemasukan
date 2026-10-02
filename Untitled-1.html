@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Anggaran Keuangan</title>
+    <!-- SheetJS CDN untuk Export Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        body { background-color: #f0f2f5; padding: 15px; color: #333; }
+        .container { max-width: 650px; margin: auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        h2 { text-align: center; color: #1a73e8; margin-bottom: 5px; }
+        p.subtitle { text-align: center; font-size: 13px; color: #666; margin-bottom: 20px; }
+        
+        .card-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .box { padding: 12px; border-radius: 8px; text-align: center; color: white; }
+        .box-masuk { background: #34a853; }
+        .box-keluar { background: #ea4335; }
+        .box h4 { font-size: 12px; opacity: 0.9; }
+        .box h3 { font-size: 18px; margin-top: 5px; }
+
+        .form-section { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #e0e0e0; }
+        .form-section h3 { font-size: 14px; margin-bottom: 10px; color: #444; }
+        .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+        input, select, button { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; width: 100%; }
+        
+        .btn-primary { background-color: #1a73e8; color: white; font-weight: bold; border: none; cursor: pointer; }
+        .btn-primary:hover { background-color: #1557b0; }
+        .btn-excel { background-color: #107c41; color: white; font-weight: bold; border: none; cursor: pointer; margin-bottom: 10px; }
+        .btn-excel:hover { background-color: #0b582e; }
+        .btn-reset { background-color: #ea4335; color: white; font-weight: bold; border: none; cursor: pointer; margin-bottom: 20px; }
+
+        .table-container { overflow-x: auto; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        th, td { padding: 10px 8px; border-bottom: 1px solid #eee; vertical-align: middle; }
+        th { background-color: #f1f3f4; color: #555; }
+
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 12px; font-weight: bold; font-size: 11px; text-align: center; }
+        .badge-success { background-color: #e6f4ea; color: #137333; }
+        .badge-warning { background-color: #fef7e0; color: #b06000; }
+        
+        .action-btn { background: #ea4335; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .pay-btn { background: #34a853; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-right: 4px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Atur Keuangan & Pos Pos</h2>
+    <p class="subtitle">Sistem Pelacak Pos Anggaran & Status Pembayaran</p>
+    
+    <div class="card-summary">
+        <div class="box box-masuk">
+            <h4>Total Pemasukan</h4>
+            <h3 id="total-pemasukan">Rp0</h3>
+        </div>
+        <div class="box box-keluar">
+            <h4>Total Terbayar</h4>
+            <h3 id="total-terbayar">Rp0</h3>
+        </div>
+    </div>
+
+    <!-- Form Input Pemasukan -->
+    <div class="form-section">
+        <h3>1. Tambah Pemasukan (Gaji / Lembur)</h3>
+        <div class="form-group">
+            <input type="text" id="in-ket" placeholder="Sumber Pemasukan (cth: Gaji Pokok, Lembur)">
+            <input type="number" id="in-nom" placeholder="Nominal Pemasukan (Rp)">
+            <button class="btn-primary" onclick="tambahPemasukan()">+ Tambah Pemasukan</button>
+        </div>
+    </div>
+
+    <!-- Form Input Pos Pos Kebutuhan -->
+    <div class="form-section">
+        <h3>2. Buat Pos Anggaran / Keperluan</h3>
+        <div class="form-group">
+            <input type="text" id="pos-nama" placeholder="Nama Keperluan (cth: Kuliah UT, Kasih Adik)">
+            <input type="number" id="pos-target" placeholder="Target Anggaran (Rp)">
+            <button class="btn-primary" style="background-color: #34a853;" onclick="tambahPos()">+ Tambah Pos Anggaran</button>
+        </div>
+    </div>
+
+    <!-- Tabel Pos Anggaran & Status Ceklis -->
+    <h3>Status Pos Keperluan</h3>
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Keperluan</th>
+                    <th>Target</th>
+                    <th>Terbayar</th>
+                    <th>Status / Kurang</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="tb-pos">
+                <!-- Data pos akan masuk di sini -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Fitur Bulan Baru & Export Excel -->
+    <button class="btn-excel" onclick="exportToExcel()">📊 Download Laporan Excel (.xlsx)</button>
+    <button class="btn-reset" onclick="resetBulanBaru()">🔄 Mulai Bulan Baru (Reset Status Pembayaran)</button>
+</div>
+
+<script>
+    let dataPemasukan = JSON.parse(localStorage.getItem('app_pemasukan')) || [];
+    let dataPos = JSON.parse(localStorage.getItem('app_pos')) || [];
+
+    const formatRupiah = (angka) => {
+        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
+    };
+
+    function simpanData() {
+        localStorage.setItem('app_pemasukan', JSON.stringify(dataPemasukan));
+        localStorage.setItem('app_pos', JSON.stringify(dataPos));
+        renderUI();
+    }
+
+    function tambahPemasukan() {
+        const ket = document.getElementById('in-ket').value;
+        const nom = parseFloat(document.getElementById('in-nom').value);
+        if (ket && nom) {
+            dataPemasukan.push({ ket, nom });
+            document.getElementById('in-ket').value = '';
+            document.getElementById('in-nom').value = '';
+            simpanData();
+        }
+    }
+
+    function tambahPos() {
+        const nama = document.getElementById('pos-nama').value;
+        const target = parseFloat(document.getElementById('pos-target').value);
+        if (nama && target) {
+            dataPos.push({ nama, target, terbayar: 0 });
+            document.getElementById('pos-nama').value = '';
+            document.getElementById('pos-target').value = '';
+            simpanData();
+        }
+    }
+
+    function bayarPos(index) {
+        const jumlah = prompt(`Berapa uang yang dialokasikan/dikeluarkan untuk "${dataPos[index].nama}"?`);
+        const nominal = parseFloat(jumlah);
+        if (!isNaN(nominal) && nominal > 0) {
+            dataPos[index].terbayar += nominal;
+            simpanData();
+        }
+    }
+
+    function hapusPos(index) {
+        if (confirm("Hapus pos ini?")) {
+            dataPos.splice(index, 1);
+            simpanData();
+        }
+    }
+
+    function renderUI() {
+        const totMasuk = dataPemasukan.reduce((acc, curr) => acc + curr.nom, 0);
+        document.getElementById('total-pemasukan').innerText = formatRupiah(totMasuk);
+
+        let totTerbayar = 0;
+        const tbody = document.getElementById('tb-pos');
+        tbody.innerHTML = '';
+
+        dataPos.forEach((item, index) => {
+            totTerbayar += item.terbayar;
+            const selisih = item.target - item.terbayar;
+            
+            let statusHTML = '';
+            if (selisih <= 0) {
+                statusHTML = `<span class="badge badge-success">✔ Lunas</span>`;
+            } else {
+                statusHTML = `<span class="badge badge-warning">Kurang ${formatRupiah(selisih)}</span>`;
+            }
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${item.nama}</strong></td>
+                <td>${formatRupiah(item.target)}</td>
+                <td>${formatRupiah(item.terbayar)}</td>
+                <td>${statusHTML}</td>
+                <td>
+                    <button class="pay-btn" onclick="bayarPos(${index})">+ Bayar</button>
+                    <button class="action-btn" onclick="hapusPos(${index})">x</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('total-terbayar').innerText = formatRupiah(totTerbayar);
+    }
+
+    // --- FITUR EXPORT TO EXCEL ---
+    function exportToExcel() {
+        if (dataPos.length === 0 && dataPemasukan.length === 0) {
+            alert("Belum ada data untuk di-export!");
+            return;
+        }
+
+        const wb = XLSX.utils.book_new();
+
+        // Sheet 1: Laporan Pos Anggaran
+        const excelDataPos = dataPos.map(item => {
+            const selisih = item.target - item.terbayar;
+            return {
+                "Nama Keperluan": item.nama,
+                "Target Anggaran (Rp)": item.target,
+                "Terbayar (Rp)": item.terbayar,
+                "Kekurangan (Rp)": selisih > 0 ? selisih : 0,
+                "Status": selisih <= 0 ? "Lunas" : "Belum Lunas"
+            };
+        });
+        const wsPos = XLSX.utils.json_to_sheet(excelDataPos);
+        XLSX.utils.book_append_sheet(wb, wsPos, "Pos Keperluan");
+
+        // Sheet 2: Laporan Pemasukan
+        const excelDataMasuk = dataPemasukan.map(item => ({
+            "Sumber Pemasukan": item.ket,
+            "Nominal (Rp)": item.nom
+        }));
+        const wsMasuk = XLSX.utils.json_to_sheet(excelDataMasuk);
+        XLSX.utils.book_append_sheet(wb, wsMasuk, "Pemasukan");
+
+        // Tanggal otomatis untuk nama file
+        const today = new Date();
+        const bulanTahun = today.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
+        
+        XLSX.writeFile(wb, `Laporan_Keuangan_${bulanTahun.replace(' ', '_')}.xlsx`);
+    }
+
+    // --- FITUR BULAN BARU (RESET STATUS) ---
+    function resetBulanBaru() {
+        const konfirmasi = confirm("Apakah Anda ingin mereset pembayaran untuk mulai bulan baru?\n\n- Pos keperluan & targetnya TETAP ADA.\n- Jumlah 'Terbayar' akan dikembalikan ke Rp0.\n- Pemasukan akan di-reset.");
+        if (konfirmasi) {
+            // Reset pembayaran pos tanpa menghapus pos-nya
+            dataPos.forEach(item => item.terbayar = 0);
+            dataPemasukan = [];
+            simpanData();
+            alert("Status berhasil di-reset untuk bulan baru!");
+        }
+    }
+
+    renderUI();
+</script>
+
+</body>
+</html>
